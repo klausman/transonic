@@ -5,6 +5,7 @@
 import sys
 import os
 import subprocess
+import terminal
 
 from multiprocessing import Pool
 
@@ -14,8 +15,7 @@ pingstats = namedtuple('pingstats', "txcount rxcount lossprc totaltm")
 rttstats = namedtuple('rttstats', "rmin ravg rmax rmdev")
 
 class Pingresult:
-    def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None, 
-                 style="line"):
+    def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None):
         self.hostname = hostname
         if pstats:
             self.pstats = pstats
@@ -25,15 +25,11 @@ class Pingresult:
             self.rtt = rtt
         else:
             self.rtt = rttstats("?", "?", "?", "?")
-        self.style = style
 
     def __str__(self):
-        if self.style == "line":
-            return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
-                (self.hostname, self.pstats.txcount, self.pstats.rxcount,
-                 self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
-        else:
-            return("Unknown style '%s' for '%s'" % (self.style, self.hostname))
+        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
+            (self.hostname, self.pstats.txcount, self.pstats.rxcount,
+             self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 def eprint(fmt, *args):
     sys.stderr.write(fmt % args)
@@ -71,12 +67,28 @@ def pinger(host):
     #print(res)
     return res
 
+def formatresults(results, style="lines"):
+
+    if style == "lines":
+        return "\n".join(str(x) for x in results)
+
+    elif style == "cells":
+        res = []
+        for r in results:
+            if r.pstats.txcount > r.pstats.rxcount or \
+               r.pstats.rxcount == 0:
+               res.append(terminal.render("%%(RED)sR%s%%(NORMAL)s" % r.hostname))
+            else:
+               res.append(r.hostname)
+        return " ".join(res)
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         usage()
-
+    terminal.setup()
     pool = Pool(processes=4)
     results = pool.map(pinger, sys.argv[1:])
     #print(results)
-    print("\n".join(str(x) for x in results))
+    print(formatresults(results, style="cells"))
