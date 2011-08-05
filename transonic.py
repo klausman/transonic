@@ -5,11 +5,17 @@
 import sys
 import os
 import subprocess
-import terminal
+#import terminal
 
 from multiprocessing import Pool
 
 from collections import namedtuple
+
+RED='\x1b[38;5;1m'
+NORMAL='\x1b[m\x1b(B'
+YELLOW='\x1b[38;5;3m'
+REVERSE='\x1b[7m'
+
 
 pingstats = namedtuple('pingstats', "txcount rxcount lossprc totaltm")
 rttstats = namedtuple('rttstats', "rmin ravg rmax rmdev")
@@ -77,7 +83,7 @@ def formatresults(results, style="lines"):
         for r in results:
             if r.pstats.txcount > r.pstats.rxcount or \
                r.pstats.rxcount == 0:
-               res.append(terminal.render("%%(RED)sR%s%%(NORMAL)s" % r.hostname))
+               res.append("%s%s%s" % (REVERSE, r.hostname, NORMAL))
             else:
                res.append(r.hostname)
         return " ".join(res)
@@ -87,7 +93,7 @@ def formatresults(results, style="lines"):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         usage()
-    terminal.setup()
+    #terminal.setup()
     pool = Pool(processes=4)
     results = pool.map(pinger, sys.argv[1:])
     #print(results)
