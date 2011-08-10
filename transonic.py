@@ -2,9 +2,10 @@
 
 # Copyright (C) 2011 Tobias Klausmann
 
-import sys
+import argparse
 import os
 import subprocess
+import sys
 #import terminal
 
 from multiprocessing import Pool
@@ -45,11 +46,14 @@ def usage():
     eprint("Usage goes here")
     sys.exit(0)
 
+def set_pingcount(func):
+    return 
+
 def pinger(host):
     #print("Ping job with PID %i for host %s starting" % (os.getpid(), host))
     rtts = None
     pstat = None
-    cmd = "ping -c 5 -q '%s'" % (host)
+    cmd = "ping -c %i -q '%s'" % (args.count, host)
     (retval, output) = subprocess.getstatusoutput(cmd)
 
     for line in output.split("\n"):
@@ -73,12 +77,12 @@ def pinger(host):
     #print(res)
     return res
 
-def formatresults(results, style="lines"):
+def formatresults(results, style):
 
-    if style == "lines":
+    if style == "list":
         return "\n".join(str(x) for x in results)
 
-    elif style == "cells":
+    elif style == "cell":
         res = []
         for r in results:
             if r.pstats.txcount > r.pstats.rxcount or \
@@ -87,14 +91,35 @@ def formatresults(results, style="lines"):
             else:
                res.append(r.hostname)
         return " ".join(res)
-
-
+    elif style == "ccell":
+        res = []
+        for r in results:
+            if r.pstats.txcount > r.pstats.rxcount or \
+               r.pstats.rxcount == 0:
+               res.append("!" % (REVERSE, r.hostname, NORMAL))
+            else:
+               res.append(".")
+        return "".join(res)
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        usage()
+    global args
+    modes = ['cell', 'ccell', 'list']
+    parser = argparse.ArgumentParser(description=
+                                     'Ping hosts in parallel and show results')
+    parser.add_argument('targets', metavar='target', nargs='+',
+                       help='Hostname or IPv4 to ping')
+    parser.add_argument('--count', "-c", metavar='count', default=5, type=int,
+                       help='Number of ICMP echo requests to send (%(default)s)')
+    parser.add_argument('--mode', '-m', metavar='mode', 
+                        help='Output mode, one of %s (list)' % 
+                        (", ".join(modes)),
+                        choices=modes, default='list')
+
+
+    args = parser.parse_args()
+
     #terminal.setup()
     pool = Pool(processes=4)
-    results = pool.map(pinger, sys.argv[1:])
+    results = pool.map(pinger, args.targets)
     #print(results)
-    print(formatresults(results, style="cells"))
+    print(formatresults(results, style=args.mode))
