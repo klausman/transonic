@@ -2,7 +2,7 @@
 
 # Copyright (C) 2011 Tobias Klausmann
 
-import argparse
+import optparse
 import os
 import subprocess
 import sys
@@ -54,8 +54,9 @@ def pinger(host):
     #print("Ping job with PID %i for host %s starting" % (os.getpid(), host))
     rtts = None
     pstat = None
-    cmd = "ping -c %i -q '%s'" % (args.count, host)
-    (retval, output) = subprocess.getstatusoutput(cmd)
+    cmd = ['ping', '-c', str(opts.count), '-q', host]
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = p.communicate()
 
     for line in output.split("\n"):
         #print(line)
@@ -108,30 +109,27 @@ def formatresults(results, style):
         return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 
 if __name__ == "__main__":
-    global args
+    global opts, args
     modes = ['cell', 'ccell', 'list']
-    parser = argparse.ArgumentParser(description=
-                                     'Ping hosts in parallel and show results')
-    parser.add_argument('targets', metavar='target', nargs='+',
-                       help='Hostname or IPv4 to ping')
-    parser.add_argument('--count', "-c", metavar='count', default=5, type=int,
-                       help='Number of ICMP echo requests to send (%(default)s)')
-    parser.add_argument('--concurrency', "-n", metavar='number', default=100, type=int,
-                       help='Number of parallel processes to use (%(default)s)')
-    parser.add_argument('--mode', '-m', metavar='mode', 
+    parser = optparse.OptionParser()
+    parser.add_option('--count', "-c", metavar='count', default=5, type=int,
+                       help='Number of ICMP echo requests to send (5)')
+    parser.add_option('--concurrency', "-n", metavar='number', default=100, type=int,
+                       help='Number of parallel processes to use (100)')
+    parser.add_option('--mode', '-m', metavar='mode', 
                         help='Output mode, one of %s (list)' % 
                         (", ".join(modes)),
                         choices=modes, default='list')
 
 
-    args = parser.parse_args()
+    opts, args = parser.parse_args()
 
     #terminal.setup()
-    eprint("Pinging %i machines with %i workers." % (len(args.targets), args.concurrency))
-    pool = Pool(processes=args.concurrency)
+    eprint("Pinging %i machines with %i workers." % (len(args), opts.concurrency))
+    pool = Pool(processes=opts.concurrency)
     start = time.time()
-    results = pool.map(pinger, args.targets)
+    results = pool.map(pinger, args)
     end = time.time()
     #print(results)
-    print(formatresults(results, style=args.mode))
-    print("Time taken: %.2f seconds (%.3f per host)" % (end-start, (end-start)/len(args.targets)))
+    print(formatresults(results, style=opts.mode))
+    print("Time taken: %.2f seconds (%.3f per host)" % (end-start, (end-start)/len(args)))
