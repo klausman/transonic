@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 #import terminal
+import time
 
 from multiprocessing import Pool
 
@@ -78,7 +79,7 @@ def pinger(host):
     return res
 
 def formatresults(results, style):
-
+    counts = [0, 0]
     if style == "list":
         return "\n".join(str(x) for x in results)
 
@@ -87,19 +88,24 @@ def formatresults(results, style):
         for r in results:
             if r.pstats.txcount > r.pstats.rxcount or \
                r.pstats.rxcount == 0:
+               counts[1] += 1
                res.append("%s%s%s" % (REVERSE, r.hostname, NORMAL))
             else:
+               counts[0] += 1
                res.append(r.hostname)
-        return " ".join(res)
+        return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+
     elif style == "ccell":
         res = []
         for r in results:
             if r.pstats.txcount > r.pstats.rxcount or \
                r.pstats.rxcount == 0:
-               res.append("!" % (REVERSE, r.hostname, NORMAL))
+               counts[1] += 1
+               res.append("!")
             else:
+               counts[0] += 1
                res.append(".")
-        return "".join(res)
+        return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 
 if __name__ == "__main__":
     global args
@@ -110,6 +116,8 @@ if __name__ == "__main__":
                        help='Hostname or IPv4 to ping')
     parser.add_argument('--count', "-c", metavar='count', default=5, type=int,
                        help='Number of ICMP echo requests to send (%(default)s)')
+    parser.add_argument('--concurrency', "-n", metavar='number', default=100, type=int,
+                       help='Number of parallel processes to use (%(default)s)')
     parser.add_argument('--mode', '-m', metavar='mode', 
                         help='Output mode, one of %s (list)' % 
                         (", ".join(modes)),
@@ -119,7 +127,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #terminal.setup()
-    pool = Pool(processes=4)
+    eprint("Pinging %i machines with %i workers." % (len(args.targets), args.concurrency))
+    pool = Pool(processes=args.concurrency)
+    start = time.time()
     results = pool.map(pinger, args.targets)
+    end = time.time()
     #print(results)
     print(formatresults(results, style=args.mode))
+    print("Time taken: %.2f seconds (%.3f per host)" % (end-start, (end-start)/len(args.targets)))
