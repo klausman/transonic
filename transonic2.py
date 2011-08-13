@@ -132,4 +132,4 @@ if __name__ == "__main__":
     end = time.time()
     #print(results)
     print(formatresults(results, style=opts.mode))
-    print("Time taken: %.2f seconds (%.3f per host)" % (end-start, (end-start)/len(args)))
+    print("Time taken: %.3f seconds (%.3f per host)" % (end-start, (end-start)/len(args)))
