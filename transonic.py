@@ -1,38 +1,42 @@
 #!/usr/bin/python3 -tt
-
+"""Transonic, a massively parallel host pinger and result displayer"""
 # Copyright (C) 2011 Tobias Klausmann
 
 import argparse
-import os
 import subprocess
 import sys
 #import terminal
 import time
 
+from collections import namedtuple
+from functools import partial
 from multiprocessing import Pool
 
-from collections import namedtuple
+RED = '\x1b[38;5;1m'
+NORMAL = '\x1b[m\x1b(B'
+YELLOW = '\x1b[38;5;3m'
+REVERSE = '\x1b[7m'
 
-RED='\x1b[38;5;1m'
-NORMAL='\x1b[m\x1b(B'
-YELLOW='\x1b[38;5;3m'
-REVERSE='\x1b[7m'
+FORMATTERS = {}
 
-
-pingstats = namedtuple('pingstats', "txcount rxcount lossprc totaltm")
-rttstats = namedtuple('rttstats', "rmin ravg rmax rmdev")
+# NT: packets sent, packets received, loss percentage, total time passed
+__Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
+# NT: minimum, average and maximum RTT, standard deviation
+__RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
 
 class Pingresult:
-    def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None):
+    """Encapsulate one ping result, including RTT et al"""
+    def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None, retval=-1):
         self.hostname = hostname
+        self.retval = retval
         if pstats:
             self.pstats = pstats
         else:
-            self.pstats = pingstats("?", "?", "?", "?")
+            self.pstats = __Pingstats__("?", "?", "?", "?")
         if rtt:
             self.rtt = rtt
         else:
-            self.rtt = rttstats("?", "?", "?", "?")
+            self.rtt = __RTTstats__("?", "?", "?", "?")
 
     def __str__(self):
         return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
@@ -40,21 +44,18 @@ class Pingresult:
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 def eprint(fmt, *args):
+    """Print fmt%args to stderr and add newline"""
     sys.stderr.write(fmt % args)
     sys.stderr.write("\n")
 
-def usage():
-    eprint("Usage goes here")
-    sys.exit(0)
-
-def set_pingcount(func):
-    return 
-
-def pinger(host):
+def pinger(host, count):
+    """
+    Ping host count times and return Pingresult
+    """
     #print("Ping job with PID %i for host %s starting" % (os.getpid(), host))
     rtts = None
     pstat = None
-    cmd = "ping -c %i -q '%s'" % (args.count, host)
+    cmd = "ping -c %i -q '%s'" % (count, host)
     (retval, output) = subprocess.getstatusoutput(cmd)
 
     for line in output.split("\n"):
@@ -62,76 +63,114 @@ def pinger(host):
         if line[2:2+len("packets transmitted")] == "packets transmitted":
             stats = line.split()
             if "errors," in stats:
-                pstat = pingstats(int(stats[0]), int(stats[3]),
-                                  int(stats[7][:-1]), int(stats[11][:-2]))
+                pstat = __Pingstats__(int(stats[0]), int(stats[3]),
+                                      int(stats[7][:-1]), int(stats[11][:-2]))
             else:
-                pstat = pingstats(int(stats[0]), int(stats[3]),
-                                  int(stats[5][:-1]), int(stats[9][:-2]))
+                pstat = __Pingstats__(int(stats[0]), int(stats[3]),
+                                      int(stats[5][:-1]), int(stats[9][:-2]))
             continue
 
         if line.startswith("rtt min/avg/max/mdev"):
             rtts = line.split(None, 4)[3]
             r_min, r_avg, r_max, r_mdev = rtts.split("/")
-            rtts = rttstats(r_min, r_avg, r_max, r_mdev)
+            rtts = __RTTstats__(r_min, r_avg, r_max, r_mdev)
             continue
-    res =  Pingresult(host, pstat, rtts)
+    res =  Pingresult(host, pstat, rtts, retval)
     #print(res)
     return res
 
-def formatresults(results, style):
+def frl_list(resultlist, _):
+    """Format the resultlist as a simple list, one host per line"""
+    return "\n".join(str(x) for x in resultlist)
+FORMATTERS["list"] = frl_list
+
+def frl_cell(resultlist, replies):
+    """
+    Format the resultlist as "cells"
+
+    The output format is:
+     foo bar baz
+
+    where hosts that do not meet the criteria are highlighted using a different
+    color
+    """
     counts = [0, 0]
-    if style == "list":
-        return "\n".join(str(x) for x in results)
+    res = []
+    for pres in resultlist:
+        if replies > pres.pstats.rxcount:
+            counts[1] += 1
+            res.append("%s%s%s" % (REVERSE, pres.hostname, NORMAL))
+        else:
+            counts[0] += 1
+            res.append(pres.hostname)
+    return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+FORMATTERS["cell"] = frl_cell
 
-    elif style == "cell":
-        res = []
-        for r in results:
-            if r.pstats.txcount > r.pstats.rxcount or \
-               r.pstats.rxcount == 0:
-               counts[1] += 1
-               res.append("%s%s%s" % (REVERSE, r.hostname, NORMAL))
-            else:
-               counts[0] += 1
-               res.append(r.hostname)
-        return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+def frl_ccell(resultlist, replies):
+    """
+    Format the resultlist as "compact cells"
 
-    elif style == "ccell":
-        res = []
-        for r in results:
-            if r.pstats.txcount > r.pstats.rxcount or \
-               r.pstats.rxcount == 0:
-               counts[1] += 1
-               res.append("!")
-            else:
-               counts[0] += 1
-               res.append(".")
-        return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    Each host is represented by "." (ping ok) or "!" (ping not ok)
+    """
+    counts = [0, 0]
+    res = []
+    for pres in resultlist:
+        if replies > pres.pstats.rxcount:
+            counts[1] += 1
+            res.append("!")
+        else:
+            counts[0] += 1
+            res.append(".")
+    return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+FORMATTERS["ccell"] = frl_ccell
 
-if __name__ == "__main__":
-    global args
-    modes = ['cell', 'ccell', 'list']
-    parser = argparse.ArgumentParser(description=
-                                     'Ping hosts in parallel and show results')
-    parser.add_argument('targets', metavar='target', nargs='+',
-                       help='Hostname or IPv4 to ping')
-    parser.add_argument('--count', "-c", metavar='count', default=5, type=int,
-                       help='Number of ICMP echo requests to send (%(default)s)')
-    parser.add_argument('--concurrency', "-n", metavar='number', default=100, type=int,
-                       help='Number of parallel processes to use (%(default)s)')
-    parser.add_argument('--mode', '-m', metavar='mode', 
-                        help='Output mode, one of %s (list)' % 
-                        (", ".join(modes)),
-                        choices=modes, default='list')
+def formatresultlist(resultlist, style, replies):
+    """Dispatch formatting of resultlist to the handler of the given style"""
+    if style not in FORMATTERS:
+        return "Unknown formatter '%s'" % (style)
+
+    return FORMATTERS[style](resultlist, replies)
 
 
-    args = parser.parse_args()
+
+def main():
+    """Main program: parse cmdline and call service functions"""
+    cmdp = argparse.ArgumentParser(description=
+                                   'Ping hosts in parallel and show results')
+    cmdp.add_argument('targets', metavar='target', nargs='+',
+                      help='Hostname or IPv4 to ping')
+    cmdp.add_argument('--count', "-c", metavar='count', default=5, type=int,
+                      help='Number of ICMP echo requests to send (%(default)s)')
+    cmdp.add_argument('--replies', "-r", metavar='replies', default=4, type=int,
+                      help='Minimum number of ping replies to expect before a '
+                      'host is considered up (%(default)s).')
+    cmdp.add_argument('--concurrency', "-n", metavar='number', default=100, 
+                      type=int,
+                      help='Number of parallel processes to use (%(default)s). '
+                      'Note: the actual number will be the minimum of this and '
+                      'the number of hosts to ping')
+    cmdp.add_argument('--mode', '-m', metavar='mode', 
+                       help='Output mode, one of %s (list)' % 
+                       (", ".join(FORMATTERS.keys())),
+                       choices=FORMATTERS.keys(), default='list')
+
+
+    args = cmdp.parse_args()
+    concurrency = min(args.concurrency, len(args.targets))
 
     #terminal.setup()
-    eprint("Pinging %i machines with %i workers." % (len(args.targets), args.concurrency))
-    pool = Pool(processes=args.concurrency)
+    eprint("Pinging %i machines with %i workers; %s pings per host" % 
+           (len(args.targets), concurrency, args.count))
+    pool = Pool(processes=concurrency)
     start = time.time()
-    results = pool.map(pinger, args.targets)
+    ppinger = partial(pinger, count=args.count)
+    results = pool.map(ppinger, args.targets)
     end = time.time()
     #print(results)
-    print(formatresults(results, style=args.mode))
-    print("Time taken: %.3f seconds (%.3f per host)" % (end-start, (end-start)/len(args.targets)))
+    print(formatresultlist(results, args.mode, args.replies))
+    eprint("Time taken: %.3f seconds (%.3f per host)" % 
+          (end-start, (end-start)/len(args.targets)))
+
+
+if __name__ == "__main__":
+    main()
