@@ -8,16 +8,20 @@ import sys
 #import terminal
 import time
 
-from multiprocessing import Pool
-
 from collections import namedtuple
+from functools import partial
+from multiprocessing import Pool
 
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
 YELLOW = '\x1b[38;5;3m'
 REVERSE = '\x1b[7m'
 
+FORMATTERS = {}
+
+# NT: packets sent, packets received, loss percentage, total time passed
 __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
+# NT: minimum, average and maximum RTT, standard deviation
 __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
 
 class Pingresult:
@@ -43,14 +47,14 @@ def eprint(fmt, *args):
     sys.stderr.write(fmt % args)
     sys.stderr.write("\n")
 
-def pinger(host):
+def pinger(host, count):
     """
     Ping host and return Pingresult
     """
     #print("Ping job with PID %i for host %s starting" % (os.getpid(), host))
     rtts = None
     pstat = None
-    cmd = ['ping', '-c', str(count), '-q', host]
+    cmd = ['ping', '-W', '1', '-c', str(count), '-q', host]
     pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
                              stderr=subprocess.PIPE)
     output, _ = pcomm.communicate() # we drop stderr and ignore it
@@ -76,66 +80,100 @@ def pinger(host):
     #print(res)
     return res
 
-def formatresultlist(resultlist, style):
-    """Format resultlist elements according to style setting"""
+def frl_list(resultlist, _):
+    """Format the resultlist as a simple list, one host per line"""
+    return "\n".join(str(x) for x in resultlist)
+FORMATTERS["list"] = frl_list
+
+def frl_cell(resultlist, replies):
+    """
+    Format the resultlist as "cells"
+
+    The output format is:
+     foo bar baz
+
+    where hosts that do not meet the criteria are highlighted using a different
+    color
+    """
     counts = [0, 0]
-    if style == "list":
-        return "\n".join(str(x) for x in resultlist)
+    res = []
+    for pres in resultlist:
+        if replies > pres.pstats.rxcount:
+            counts[1] += 1
+            res.append("%s%s%s" % (REVERSE, pres.hostname, NORMAL))
+        else:
+            counts[0] += 1
+            res.append(pres.hostname)
+    return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+FORMATTERS["cell"] = frl_cell
 
-    elif style == "cell":
-        res = []
-        for pingresult in resultlist:
-            if pingresult.pstats.txcount > pingresult.pstats.rxcount or \
-               pingresult.pstats.rxcount == 0:
-                counts[1] += 1
-                res.append("%s%s%s" % (REVERSE, pingresult.hostname, NORMAL))
-            else:
-                counts[0] += 1
-                res.append(pingresult.hostname)
-        return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+def frl_ccell(resultlist, replies):
+    """
+    Format the resultlist as "compact cells"
 
-    elif style == "ccell":
-        res = []
-        for pingresult in resultlist:
-            if pingresult.pstats.txcount > pingresult.pstats.rxcount or \
-               pingresult.pstats.rxcount == 0:
-                counts[1] += 1
-                res.append("!")
-            else:
-                counts[0] += 1
-                res.append(".")
-        return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    Each host is represented by "." (ping ok) or "!" (ping not ok)
+    """
+    counts = [0, 0]
+    res = []
+    for pres in resultlist:
+        if replies > pres.pstats.rxcount:
+            counts[1] += 1
+            res.append("!")
+        else:
+            counts[0] += 1
+            res.append(".")
+    return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+FORMATTERS["ccell"] = frl_ccell
 
-def sglob(*globs):
-    """Set per-worker globals"""
-    global count
-    count = globs[0]
+def formatresultlist(resultlist, style, replies):
+    """Dispatch formatting of resultlist to the handler of the given style"""
+    if style not in FORMATTERS:
+        return "Unknown formatter '%s'" % (style)
+
+    return FORMATTERS[style](resultlist, replies)
 
 def main():
     """Main program: parse cmdline and call service functions"""
     modes = ['cell', 'ccell', 'list']
     cmdp = optparse.OptionParser()
-    cmdp.add_option('--count', "-c", metavar='count', default=5, type=int,
+    cmdp.add_option('--count', "-c", metavar='count', default="5", type=int,
                     help='Number of ICMP echo requests to send (5)')
+    cmdp.add_option('--replies', "-r", metavar='replies', default=4, type=int,
+                    help='Minimum number of ping replies to expect before a '
+                    'host is considered up (4).')
     cmdp.add_option('--concurrency', "-n", metavar='number', default=100, 
                     type=int, help='Number of parallel processes to use (100)')
     cmdp.add_option('--mode', '-m', metavar='mode', 
                     help='Output mode, one of %s (list)' % (", ".join(modes)),
                     choices=modes, default='list')
+    cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False, 
+                    action="store_true", help='Do not adjust expected number '
+                    'of replies, even if larger than number of requests sent.')
 
     opts, arguments = cmdp.parse_args()
 
     concurrency = min(opts.concurrency, len(arguments))
 
+    # Sanity check
+    if (opts.count < opts.replies):
+        eprint("Warning: Expected reply count is larger than number of "
+               "requests sent (%i > %i)." % (opts.replies, opts.count))
+        if not opts.noadjust:
+            eprint("Adjusting expected reply count to %i" % (opts.count))
+            opts.replies = opts.count
+        else:
+            eprint("All hosts will be marked as down.")
+
     #terminal.setup()
     eprint("Pinging %i machines with %i workers; %s pings per host." % 
            (len(arguments), concurrency, opts.count))
-    pool = Pool(processes=concurrency, initializer=sglob, initargs=[opts.count])
+    pool = Pool(processes=concurrency)
+    ppinger = partial(pinger, count=opts.count)
     start = time.time()
-    results = pool.map(pinger, arguments)
+    results = pool.map(ppinger, arguments)
     end = time.time()
     #print(results)
-    print(formatresultlist(results, style=opts.mode))
+    print(formatresultlist(results, opts.mode, opts.replies))
     eprint("Time taken: %.3f seconds (%.3f per host)" %
            (end-start, (end-start)/len(arguments)))
 

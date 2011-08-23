@@ -131,8 +131,6 @@ def formatresultlist(resultlist, style, replies):
 
     return FORMATTERS[style](resultlist, replies)
 
-
-
 def main():
     """Main program: parse cmdline and call service functions"""
     cmdp = argparse.ArgumentParser(description=
@@ -153,10 +151,25 @@ def main():
                        help='Output mode, one of %s (list)' % 
                        (", ".join(FORMATTERS.keys())),
                        choices=FORMATTERS.keys(), default='list')
+    cmdp.add_argument('--noadjust', '-a', default=False,
+                      action="store_true", help='Do not adjust expected '
+                      'number of replies, even if larger than number of '
+                      'requests sent.')
 
 
     args = cmdp.parse_args()
+
     concurrency = min(args.concurrency, len(args.targets))
+
+    # Sanity check
+    if (args.count < args.replies):
+        eprint("Warning: Expected reply count is larger than number of "
+               "requests sent (%i > %i)." % (args.replies, args.count))
+        if not args.noadjust:
+            eprint("Adjusting expected reply count to %i" % (args.count))
+            args.replies = args.count
+        else:
+            eprint("All hosts will be marked as down.")
 
     #terminal.setup()
     eprint("Pinging %i machines with %i workers; %s pings per host" % 
