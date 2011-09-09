@@ -1,0 +1,26 @@
+usage: transonic.py [-h] [--count count] [--replies replies]
+                    [--concurrency number] [--mode mode] [--terse]
+                    [--noadjust]
+                    target [target ...]
+
+Ping hosts in parallel and show results
+
+positional arguments:
+  target                Hostname or IPv4 to ping
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --count count, -c count
+                        Number of ICMP echo requests to send (5)
+  --replies replies, -r replies
+                        Minimum number of ping replies to expect before a host
+                        is considered up (4).
+  --concurrency number, -n number
+                        Number of parallel processes to use (100). Note: the
+                        actual number will be the minimum of this and the
+                        number of hosts to ping
+  --mode mode, -m mode  Output mode, one of cell, list, ccell (list)
+  --terse, -t           Terse output. This will not output anything except
+                        whatever the result formatter (mode) you chose does.
+  --noadjust, -a        Do not adjust expected number of replies, even if
+                        larger than number of requests sent.
