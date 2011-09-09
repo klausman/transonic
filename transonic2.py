@@ -3,6 +3,7 @@
 # Copyright (C) 2011 Tobias Klausmann
 
 import optparse
+import os
 import subprocess
 import sys
 #import terminal
@@ -11,6 +12,8 @@ import time
 from collections import namedtuple
 from functools import partial
 from multiprocessing import Pool
+
+VERSION="0.1"
 
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
@@ -55,6 +58,9 @@ def eprint(fmt, *args):
         sys.stderr.write(fmt % args)
         sys.stderr.write("\n")
 
+def print_version():
+    print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
+    print("Licensed under the GPL. See COPYING for details")
 
 def pinger(host, count):
     """
@@ -145,6 +151,11 @@ def main():
     """Main program: parse cmdline and call service functions"""
     global TERSE
     modes = ['cell', 'ccell', 'list']
+
+    if "--version" in sys.argv or "-V" in sys.argv:
+        print_version()
+        sys.exit(0)
+
     cmdp = optparse.OptionParser()
     cmdp.add_option('--count', "-c", metavar='count', default="5", type=int,
                     help='Number of ICMP echo requests to send (5)')
@@ -160,6 +171,10 @@ def main():
                     action="store_true", help='Terse output. This will not '
                     'output anything except whatever the result formatter '
                     '(mode) you chose does.')
+    # This is here so it will show up in --help output
+    cmdp.add_option('--version', '-V', default=False,
+                    action="store_true", help='Print version information and'
+                    'exit with zero status.')
     cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False, 
                     action="store_true", help='Do not adjust expected number '
                     'of replies, even if larger than number of requests sent.')
