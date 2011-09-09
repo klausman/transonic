@@ -18,6 +18,7 @@ YELLOW = '\x1b[38;5;3m'
 REVERSE = '\x1b[7m'
 
 FORMATTERS = {}
+TERSE = False
 
 # NT: packets sent, packets received, loss percentage, total time passed
 __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
@@ -43,9 +44,17 @@ class Pingresult:
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 def eprint(fmt, *args):
-    """Print fmt%args to stderr and add newline"""
-    sys.stderr.write(fmt % args)
-    sys.stderr.write("\n")
+    """
+    Print fmt%args to stderr and add newline
+
+    Note that this function looks at the global setting TERSE. Therefore
+    it must not be used from the result formatters.
+    
+    """
+    if not TERSE:
+        sys.stderr.write(fmt % args)
+        sys.stderr.write("\n")
+
 
 def pinger(host, count):
     """
@@ -134,6 +143,7 @@ def formatresultlist(resultlist, style, replies):
 
 def main():
     """Main program: parse cmdline and call service functions"""
+    global TERSE
     modes = ['cell', 'ccell', 'list']
     cmdp = optparse.OptionParser()
     cmdp.add_option('--count', "-c", metavar='count', default="5", type=int,
@@ -146,13 +156,23 @@ def main():
     cmdp.add_option('--mode', '-m', metavar='mode', 
                     help='Output mode, one of %s (list)' % (", ".join(modes)),
                     choices=modes, default='list')
+    cmdp.add_option('--terse', '-t', default=False,
+                    action="store_true", help='Terse output. This will not '
+                    'output anything except whatever the result formatter '
+                    '(mode) you chose does.')
     cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False, 
                     action="store_true", help='Do not adjust expected number '
                     'of replies, even if larger than number of requests sent.')
+    cmdp.usage="%prog [options] <host> [host ...]"
 
     opts, arguments = cmdp.parse_args()
 
+    TERSE = opts.terse
     concurrency = min(opts.concurrency, len(arguments))
+
+    if not arguments:
+        cmdp.print_usage()
+        sys.exit(-1)
 
     # Sanity check
     if (opts.count < opts.replies):
