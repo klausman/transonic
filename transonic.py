@@ -18,6 +18,7 @@ YELLOW = '\x1b[38;5;3m'
 REVERSE = '\x1b[7m'
 
 FORMATTERS = {}
+TERSE = False
 
 # NT: packets sent, packets received, loss percentage, total time passed
 __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
@@ -44,9 +45,16 @@ class Pingresult:
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 def eprint(fmt, *args):
-    """Print fmt%args to stderr and add newline"""
-    sys.stderr.write(fmt % args)
-    sys.stderr.write("\n")
+    """
+    Print fmt%args to stderr and add newline
+
+    Note that this function looks at the global setting TERSE. Therefore
+    it must not be used from the result formatters.
+    
+    """
+    if not TERSE:
+        sys.stderr.write(fmt % args)
+        sys.stderr.write("\n")
 
 def pinger(host, count):
     """
@@ -133,6 +141,7 @@ def formatresultlist(resultlist, style, replies):
 
 def main():
     """Main program: parse cmdline and call service functions"""
+    global TERSE
     cmdp = argparse.ArgumentParser(description=
                                    'Ping hosts in parallel and show results')
     cmdp.add_argument('targets', metavar='target', nargs='+',
@@ -151,6 +160,10 @@ def main():
                        help='Output mode, one of %s (list)' % 
                        (", ".join(FORMATTERS.keys())),
                        choices=FORMATTERS.keys(), default='list')
+    cmdp.add_argument('--terse', '-t', default=False,
+                      action="store_true", help='Terse output. This will not '
+                      'output anything except whatever the result formatter '
+                      '(mode) you chose does.')
     cmdp.add_argument('--noadjust', '-a', default=False,
                       action="store_true", help='Do not adjust expected '
                       'number of replies, even if larger than number of '
@@ -159,6 +172,7 @@ def main():
 
     args = cmdp.parse_args()
 
+    TERSE = args.terse
     concurrency = min(args.concurrency, len(args.targets))
 
     # Sanity check
