@@ -4,6 +4,7 @@
 
 import argparse
 import subprocess
+import os
 import sys
 #import terminal
 import time
@@ -11,6 +12,8 @@ import time
 from collections import namedtuple
 from functools import partial
 from multiprocessing import Pool
+
+VERSION="0.1"
 
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
@@ -40,7 +43,7 @@ class Pingresult:
             self.rtt = __RTTstats__("?", "?", "?", "?")
 
     def __str__(self):
-        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
+        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" %
             (self.hostname, self.pstats.txcount, self.pstats.rxcount,
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
@@ -50,11 +53,15 @@ def eprint(fmt, *args):
 
     Note that this function looks at the global setting TERSE. Therefore
     it must not be used from the result formatters.
-    
+
     """
     if not TERSE:
         sys.stderr.write(fmt % args)
         sys.stderr.write("\n")
+
+def print_version():
+    print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
+    print("Licensed under the GPL. See COPYING for details")
 
 def pinger(host, count):
     """
@@ -105,7 +112,7 @@ def frl_cell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("%s%s%s" % (REVERSE, pres.hostname, NORMAL))
         else:
@@ -123,7 +130,7 @@ def frl_ccell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("!")
         else:
@@ -142,6 +149,11 @@ def formatresultlist(resultlist, style, replies):
 def main():
     """Main program: parse cmdline and call service functions"""
     global TERSE
+
+    if "--version" in sys.argv or "-V" in sys.argv:
+        print_version()
+        sys.exit(0)
+
     cmdp = argparse.ArgumentParser(description=
                                    'Ping hosts in parallel and show results')
     cmdp.add_argument('targets', metavar='target', nargs='+',
@@ -151,19 +163,23 @@ def main():
     cmdp.add_argument('--replies', "-r", metavar='replies', default=4, type=int,
                       help='Minimum number of ping replies to expect before a '
                       'host is considered up (%(default)s).')
-    cmdp.add_argument('--concurrency', "-n", metavar='number', default=100, 
+    cmdp.add_argument('--concurrency', "-n", metavar='number', default=100,
                       type=int,
                       help='Number of parallel processes to use (%(default)s). '
                       'Note: the actual number will be the minimum of this and '
                       'the number of hosts to ping')
-    cmdp.add_argument('--mode', '-m', metavar='mode', 
-                       help='Output mode, one of %s (list)' % 
+    cmdp.add_argument('--mode', '-m', metavar='mode',
+                       help='Output mode, one of %s (list)' %
                        (", ".join(FORMATTERS.keys())),
                        choices=FORMATTERS.keys(), default='list')
     cmdp.add_argument('--terse', '-t', default=False,
                       action="store_true", help='Terse output. This will not '
                       'output anything except whatever the result formatter '
                       '(mode) you chose does.')
+    # This is here so it will show up in --help output
+    cmdp.add_argument('--version', '-V', default=False,
+                      action="store_true", help='Print version information and'
+                      'exit with zero status.')
     cmdp.add_argument('--noadjust', '-a', default=False,
                       action="store_true", help='Do not adjust expected '
                       'number of replies, even if larger than number of '
@@ -186,7 +202,7 @@ def main():
             eprint("All hosts will be marked as down.")
 
     #terminal.setup()
-    eprint("Pinging %i machines with %i workers; %s pings per host" % 
+    eprint("Pinging %i machines with %i workers; %s pings per host" %
            (len(args.targets), concurrency, args.count))
     pool = Pool(processes=concurrency)
     start = time.time()
@@ -195,7 +211,7 @@ def main():
     end = time.time()
     #print(results)
     print(formatresultlist(results, args.mode, args.replies))
-    eprint("Time taken: %.3f seconds (%.3f per host)" % 
+    eprint("Time taken: %.3f seconds (%.3f per host)" %
           (end-start, (end-start)/len(args.targets)))
 
 

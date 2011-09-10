@@ -3,6 +3,7 @@
 # Copyright (C) 2011 Tobias Klausmann
 
 import optparse
+import os
 import subprocess
 import sys
 #import terminal
@@ -11,6 +12,8 @@ import time
 from collections import namedtuple
 from functools import partial
 from multiprocessing import Pool
+
+VERSION="0.1"
 
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
@@ -39,7 +42,7 @@ class Pingresult:
             self.rtt = __RTTstats__("?", "?", "?", "?")
 
     def __str__(self):
-        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
+        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" %
             (self.hostname, self.pstats.txcount, self.pstats.rxcount,
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
@@ -49,12 +52,15 @@ def eprint(fmt, *args):
 
     Note that this function looks at the global setting TERSE. Therefore
     it must not be used from the result formatters.
-    
+
     """
     if not TERSE:
         sys.stderr.write(fmt % args)
         sys.stderr.write("\n")
 
+def print_version():
+    print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
+    print("Licensed under the GPL. See COPYING for details")
 
 def pinger(host, count):
     """
@@ -64,7 +70,7 @@ def pinger(host, count):
     rtts = None
     pstat = None
     cmd = ['ping', '-W', '1', '-c', str(count), '-q', host]
-    pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
+    pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     output, _ = pcomm.communicate() # we drop stderr and ignore it
 
@@ -107,7 +113,7 @@ def frl_cell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("%s%s%s" % (REVERSE, pres.hostname, NORMAL))
         else:
@@ -125,7 +131,7 @@ def frl_ccell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("!")
         else:
@@ -145,22 +151,31 @@ def main():
     """Main program: parse cmdline and call service functions"""
     global TERSE
     modes = ['cell', 'ccell', 'list']
+
+    if "--version" in sys.argv or "-V" in sys.argv:
+        print_version()
+        sys.exit(0)
+
     cmdp = optparse.OptionParser()
     cmdp.add_option('--count', "-c", metavar='count', default="5", type=int,
                     help='Number of ICMP echo requests to send (5)')
     cmdp.add_option('--replies', "-r", metavar='replies', default=4, type=int,
                     help='Minimum number of ping replies to expect before a '
                     'host is considered up (4).')
-    cmdp.add_option('--concurrency', "-n", metavar='number', default=100, 
+    cmdp.add_option('--concurrency', "-n", metavar='number', default=100,
                     type=int, help='Number of parallel processes to use (100)')
-    cmdp.add_option('--mode', '-m', metavar='mode', 
+    cmdp.add_option('--mode', '-m', metavar='mode',
                     help='Output mode, one of %s (list)' % (", ".join(modes)),
                     choices=modes, default='list')
     cmdp.add_option('--terse', '-t', default=False,
                     action="store_true", help='Terse output. This will not '
                     'output anything except whatever the result formatter '
                     '(mode) you chose does.')
-    cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False, 
+    # This is here so it will show up in --help output
+    cmdp.add_option('--version', '-V', default=False,
+                    action="store_true", help='Print version information and'
+                    'exit with zero status.')
+    cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False,
                     action="store_true", help='Do not adjust expected number '
                     'of replies, even if larger than number of requests sent.')
     cmdp.usage="%prog [options] <host> [host ...]"
@@ -185,7 +200,7 @@ def main():
             eprint("All hosts will be marked as down.")
 
     #terminal.setup()
-    eprint("Pinging %i machines with %i workers; %s pings per host." % 
+    eprint("Pinging %i machines with %i workers; %s pings per host." %
            (len(arguments), concurrency, opts.count))
     pool = Pool(processes=concurrency)
     ppinger = partial(pinger, count=opts.count)
