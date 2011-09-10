@@ -112,7 +112,7 @@ def frl_cell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("%s%s%s" % (REVERSE, pres.hostname, NORMAL))
         else:
@@ -130,7 +130,7 @@ def frl_ccell(resultlist, replies):
     counts = [0, 0]
     res = []
     for pres in resultlist:
-        if replies > pres.pstats.rxcount:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
             counts[1] += 1
             res.append("!")
         else:
