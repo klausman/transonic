@@ -1,7 +1,7 @@
 Transonic
 =========
 
-Transonic is a simple script that lets you run ping(1) in a amassively parallel
+Transonic is a simple script that lets you run ping(1) in a massively parallel
 manner. The only limits are your bandwidth and the performance of the computer
 you run it on. After all pings have run, Transonic will present the results in
 one of several formats. Some of the formats drop detail (like RTT) in favour of
@@ -45,7 +45,7 @@ in this text file). This takes up less screen space than the per-line mode,
 especially if the host names used are short. It will still tell you _which_
 hosts are up/down.
 
-The ccell ("condensed cell") mode forgoes telling you which hosts ar up/down
+The ccell ("condensed cell") mode forgoes telling you which hosts are up/down
 in favour of displaying state of more hosts in the same amount of screen
 space. It is most useful when pinging tens or even hundreds of hosts and
 getting a quick view of the shape of things. Here's an example, also
@@ -90,7 +90,7 @@ be done.
 Be careful with the number of workers, though. Transonic does not care how
 much RAM you have or how fast your machine is. If you tell it to spawn 10000
 workers to ping 20000 machines, it will happily consume all the RAM you have.
-that said, transonic will never spawn more workers than the number of targets
+That said, Transonic will never spawn more workers than the number of targets
 you provide.
 
 Also, Transonic has the potential to quickly fill your network connection. A
@@ -104,9 +104,9 @@ Dependencies
 
 Transonic currently assumes that ping(1) has the same output format that ping
 from Linux' iputils has. If you have reasonably modern Linux installation,
-this should be enough. If you dont', or run BSD or another shape of Unix,
-adjustments to the Pinger function in Transonic may be necessary.
-Autodetection of what your ping flavour is is _not_ planned.
+this should be enough. If you run BSD or another shape of Unix, adjustments to
+the Pinger function in Transonic may be necessary. Autodetection of what your
+ping flavour is is _not_ planned.
 
 Python 2.x and 3.x
 ------------------
