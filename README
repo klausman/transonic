@@ -15,7 +15,7 @@ defaulting to "list".
 
 Here's an example of list output:
 
-$ transonic.py localhost fw host.doesnotexist.invalid 
+$ transonic.py localhost fw host.doesnotexist.invalid
 Pinging 3 machines with 3 workers; 5 pings per host
 localhost S5/R5, maMD: 0.018/0.026/0.030/0.007
 fw S5/R5, maMD: 28.525/36.897/48.839/8.450

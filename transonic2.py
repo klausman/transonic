@@ -42,7 +42,7 @@ class Pingresult:
             self.rtt = __RTTstats__("?", "?", "?", "?")
 
     def __str__(self):
-        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" % 
+        return ("%s S%s/R%s, maMD: %s/%s/%s/%s" %
             (self.hostname, self.pstats.txcount, self.pstats.rxcount,
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
@@ -52,7 +52,7 @@ def eprint(fmt, *args):
 
     Note that this function looks at the global setting TERSE. Therefore
     it must not be used from the result formatters.
-    
+
     """
     if not TERSE:
         sys.stderr.write(fmt % args)
@@ -70,7 +70,7 @@ def pinger(host, count):
     rtts = None
     pstat = None
     cmd = ['ping', '-W', '1', '-c', str(count), '-q', host]
-    pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE, 
+    pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     output, _ = pcomm.communicate() # we drop stderr and ignore it
 
@@ -162,9 +162,9 @@ def main():
     cmdp.add_option('--replies', "-r", metavar='replies', default=4, type=int,
                     help='Minimum number of ping replies to expect before a '
                     'host is considered up (4).')
-    cmdp.add_option('--concurrency', "-n", metavar='number', default=100, 
+    cmdp.add_option('--concurrency', "-n", metavar='number', default=100,
                     type=int, help='Number of parallel processes to use (100)')
-    cmdp.add_option('--mode', '-m', metavar='mode', 
+    cmdp.add_option('--mode', '-m', metavar='mode',
                     help='Output mode, one of %s (list)' % (", ".join(modes)),
                     choices=modes, default='list')
     cmdp.add_option('--terse', '-t', default=False,
@@ -175,7 +175,7 @@ def main():
     cmdp.add_option('--version', '-V', default=False,
                     action="store_true", help='Print version information and'
                     'exit with zero status.')
-    cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False, 
+    cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False,
                     action="store_true", help='Do not adjust expected number '
                     'of replies, even if larger than number of requests sent.')
     cmdp.usage="%prog [options] <host> [host ...]"
@@ -200,7 +200,7 @@ def main():
             eprint("All hosts will be marked as down.")
 
     #terminal.setup()
-    eprint("Pinging %i machines with %i workers; %s pings per host." % 
+    eprint("Pinging %i machines with %i workers; %s pings per host." %
            (len(arguments), concurrency, opts.count))
     pool = Pool(processes=concurrency)
     ppinger = partial(pinger, count=opts.count)
