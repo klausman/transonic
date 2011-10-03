@@ -2,6 +2,7 @@
 """Transonic, a massively parallel host pinger and result displayer"""
 # Copyright (C) 2011 Tobias Klausmann
 
+import copy_reg
 import optparse
 import os
 import subprocess
@@ -27,6 +28,18 @@ TERSE = False
 __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
 # NT: minimum, average and maximum RTT, standard deviation
 __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
+
+# The next two functions make partial() object pickleable in 2.6
+def pickle_partial(p):
+    return unpickle_partial, (p.func, p.args, p.keywords)
+
+def unpickle_partial(func, args, keywords):
+    return partial(func, *args, **keywords)
+
+# We do not support anything <2.6 and >2.7 has pickleable partial()s
+if sys.version_info[:2] == (2, 6):
+    copy_reg.pickle(partial, pickle_partial)
+
 
 class Pingresult:
     """Encapsulate one ping result, including RTT et al"""
