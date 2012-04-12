@@ -87,3 +87,10 @@ except Exception as e:
     # There is a failure; set all attributes to default
     print('Warning: %s' % e)
     default()
+
+if __name__ == "__main__":
+    for c in COLORS:
+        s = ["%%(%s)s%9s"%(c, c)]
+        for attr in "BOLD BLINK DIM REVERSE UNDERLINE".split():
+            s.append("%%(%s)s%%(%s)4s%s%%(NORMAL)s"%(c, attr, attr))
+        print(render(" ".join(s)))
