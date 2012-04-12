@@ -36,7 +36,7 @@ def pickle_partial(p):
 def unpickle_partial(func, args, keywords):
     return partial(func, *args, **keywords)
 
-# We do not support anything <2.6 and >2.7 has pickleable partial()s
+# We do not support anything <2.6 and >=2.7 has pickleable partial()s
 if sys.version_info[:2] == (2, 6):
     copy_reg.pickle(partial, pickle_partial)
 
