@@ -7,15 +7,17 @@ import optparse
 import os
 import subprocess
 import sys
-#import terminal
 import time
 
 from collections import namedtuple
 from functools import partial
 from multiprocessing import Pool
 
-VERSION="0.1"
+VERSION = "0.1"
 
+# We hardcode these values because using the curses module is _way_ too brittle
+# across assorted machines with somewhat functional terminfo databases. Not to
+# mention that Python's curses API/wrapper is dreadful.
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
 YELLOW = '\x1b[38;5;3m'
@@ -29,16 +31,19 @@ __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
 # NT: minimum, average and maximum RTT, standard deviation
 __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
 
-# The next two functions make partial() object pickleable in 2.6
-def pickle_partial(p):
-    return unpickle_partial, (p.func, p.args, p.keywords)
+# The next two functions make partial() objects pickleable in 2.6
+def _pickle_partial(obj):
+    """Pickle a functools.partial()"""
+    return _unpickle_partial, (obj.func, obj.args, obj.keywords)
 
-def unpickle_partial(func, args, keywords):
+def _unpickle_partial(func, args, keywords):
+    """Unpickle a functools.partial()"""
+    # pylint: disable-msg=W0142
     return partial(func, *args, **keywords)
 
-# We do not support anything <2.6 and >2.7 has pickleable partial()s
+# We do not support anything <2.6 and >=2.7 has pickleable partial()s
 if sys.version_info[:2] == (2, 6):
-    copy_reg.pickle(partial, pickle_partial)
+    copy_reg.pickle(partial, _pickle_partial)
 
 
 class Pingresult:
@@ -59,6 +64,7 @@ class Pingresult:
             (self.hostname, self.pstats.txcount, self.pstats.rxcount,
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
+
 def eprint(fmt, *args):
     """
     Print fmt%args to stderr and add newline
@@ -71,9 +77,12 @@ def eprint(fmt, *args):
         sys.stderr.write(fmt % args)
         sys.stderr.write("\n")
 
-def print_version():
+
+def _print_version():
+    """Output version number and GPL minibanner"""
     print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
     print("Licensed under the GPL. See COPYING for details")
+
 
 def pinger(host, count):
     """
@@ -87,7 +96,7 @@ def pinger(host, count):
                              stderr=subprocess.PIPE)
     output, _ = pcomm.communicate() # we drop stderr and ignore it
 
-    # pylint gets confused here. pylint: disable-msg=E1103
+    # pylint gets confused here; pylint: disable-msg=E1103
     for line in output.split("\n"):
         if line[2:2+len("packets transmitted")] == "packets transmitted":
             stats = line.split()
@@ -108,10 +117,12 @@ def pinger(host, count):
     #print(res)
     return res
 
+
 def frl_list(resultlist, _):
     """Format the resultlist as a simple list, one host per line"""
     return "\n".join(str(x) for x in resultlist)
 FORMATTERS["list"] = frl_list
+
 
 def frl_cell(resultlist, replies):
     """
@@ -135,6 +146,7 @@ def frl_cell(resultlist, replies):
     return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["cell"] = frl_cell
 
+
 def frl_ccell(resultlist, replies):
     """
     Format the resultlist as "compact cells"
@@ -153,6 +165,7 @@ def frl_ccell(resultlist, replies):
     return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["ccell"] = frl_ccell
 
+
 def formatresultlist(resultlist, style, replies):
     """Dispatch formatting of resultlist to the handler of the given style"""
     if style not in FORMATTERS:
@@ -160,13 +173,14 @@ def formatresultlist(resultlist, style, replies):
 
     return FORMATTERS[style](resultlist, replies)
 
+
 def main():
     """Main program: parse cmdline and call service functions"""
     global TERSE
     modes = ['cell', 'ccell', 'list']
 
     if "--version" in sys.argv or "-V" in sys.argv:
-        print_version()
+        _print_version()
         sys.exit(0)
 
     cmdp = optparse.OptionParser()
@@ -191,7 +205,7 @@ def main():
     cmdp.add_option('--noadjust', '-a', metavar='noadjust', default=False,
                     action="store_true", help='Do not adjust expected number '
                     'of replies, even if larger than number of requests sent.')
-    cmdp.usage="%prog [options] <host> [host ...]"
+    cmdp.usage = "%prog [options] <host> [host ...]"
 
     opts, arguments = cmdp.parse_args()
 
@@ -212,7 +226,6 @@ def main():
         else:
             eprint("All hosts will be marked as down.")
 
-    #terminal.setup()
     eprint("Pinging %i machines with %i workers; %s pings per host." %
            (len(arguments), concurrency, opts.count))
     pool = Pool(processes=concurrency)

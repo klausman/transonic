@@ -6,15 +6,17 @@ import argparse
 import subprocess
 import os
 import sys
-#import terminal
 import time
 
 from collections import namedtuple
 from functools import partial
 from multiprocessing import Pool
 
-VERSION="0.1"
+VERSION = "0.1"
 
+# We hardcode these values because using the curses module is _way_ too brittle
+# across assorted machines with somewhat functional terminfo databases. Not to
+# mention that Python's curses API/wrapper is dreadful.
 RED = '\x1b[38;5;1m'
 NORMAL = '\x1b[m\x1b(B'
 YELLOW = '\x1b[38;5;3m'
@@ -27,6 +29,7 @@ TERSE = False
 __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
 # NT: minimum, average and maximum RTT, standard deviation
 __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
+
 
 class Pingresult:
     """Encapsulate one ping result, including RTT et al"""
@@ -47,6 +50,7 @@ class Pingresult:
             (self.hostname, self.pstats.txcount, self.pstats.rxcount,
              self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
+
 def eprint(fmt, *args):
     """
     Print fmt%args to stderr and add newline
@@ -59,9 +63,12 @@ def eprint(fmt, *args):
         sys.stderr.write(fmt % args)
         sys.stderr.write("\n")
 
+
 def print_version():
+    """Print version information and GPL minibanner"""
     print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
     print("Licensed under the GPL. See COPYING for details")
+
 
 def pinger(host, count):
     """
@@ -94,6 +101,7 @@ def pinger(host, count):
     #print(res)
     return res
 
+
 def frl_list(resultlist, _):
     """Format the resultlist as a simple list, one host per line"""
     return "\n".join(str(x) for x in resultlist)
@@ -121,6 +129,7 @@ def frl_cell(resultlist, replies):
     return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["cell"] = frl_cell
 
+
 def frl_ccell(resultlist, replies):
     """
     Format the resultlist as "compact cells"
@@ -139,12 +148,14 @@ def frl_ccell(resultlist, replies):
     return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["ccell"] = frl_ccell
 
+
 def formatresultlist(resultlist, style, replies):
     """Dispatch formatting of resultlist to the handler of the given style"""
     if style not in FORMATTERS:
         return "Unknown formatter '%s'" % (style)
 
     return FORMATTERS[style](resultlist, replies)
+
 
 def main():
     """Main program: parse cmdline and call service functions"""
@@ -201,7 +212,6 @@ def main():
         else:
             eprint("All hosts will be marked as down.")
 
-    #terminal.setup()
     eprint("Pinging %i machines with %i workers; %s pings per host" %
            (len(args.targets), concurrency, args.count))
     pool = Pool(processes=concurrency)
