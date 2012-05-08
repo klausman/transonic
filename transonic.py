@@ -149,6 +149,32 @@ def frl_ccell(resultlist, replies):
 FORMATTERS["ccell"] = frl_ccell
 
 
+def frl_updownlist(resultlist, replies):
+    """
+    Format the resultlist as three lines: one showing all up hosts, prefixed
+    `UP:', one for all down hosts, prefixed `DOWN:' and one summary line, of
+    the form `TOTALS: <x> up, <y> down'
+    """
+    uphosts = set()
+    downhosts = set()
+    upcount = 0
+    downcount = 0
+    res = []
+    for pres in resultlist:
+        if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
+            downcount +=1
+            downhosts.add(pres.hostname)
+        else:
+            upcount +=1
+            uphosts.add(pres.hostname)
+
+    res.append("UP: %s" % (",".join(uphosts)))
+    res.append("DOWN: %s" % (",".join(downhosts)))
+    res.append("TOTALS: %s up, %s down" % (upcount, downcount))
+    return "\n".join(res)
+FORMATTERS["updl"] = frl_updownlist
+
+
 def formatresultlist(resultlist, style, replies):
     """Dispatch formatting of resultlist to the handler of the given style"""
     if style not in FORMATTERS:
