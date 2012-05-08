@@ -203,7 +203,7 @@ def formatresultlist(resultlist, style, replies):
 def main():
     """Main program: parse cmdline and call service functions"""
     global TERSE
-    modes = ['cell', 'ccell', 'list']
+    modes = sorted(FORMATTERS.keys())
 
     if "--version" in sys.argv or "-V" in sys.argv:
         _print_version()

@@ -207,7 +207,7 @@ def main():
                       'the number of hosts to ping')
     cmdp.add_argument('--mode', '-m', metavar='mode',
                        help='Output mode, one of %s (list)' %
-                       (", ".join(FORMATTERS.keys())),
+                       (", ".join(sorted(FORMATTERS.keys()))),
                        choices=FORMATTERS.keys(), default='list')
     cmdp.add_argument('--terse', '-t', default=False,
                       action="store_true", help='Terse output. This will not '
