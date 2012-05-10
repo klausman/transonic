@@ -185,8 +185,8 @@ def frl_updownlist(resultlist, replies):
             upcount +=1
             uphosts.add(pres.hostname)
 
-    res.append("UP: %s" % (",".join(uphosts)))
-    res.append("DOWN: %s" % (",".join(downhosts)))
+    res.append("UP:%s" % (" ".join(uphosts)))
+    res.append("DOWN:%s" % (" ".join(downhosts)))
     res.append("TOTALS: %s up, %s down" % (upcount, downcount))
     return "\n".join(res)
 FORMATTERS["updl"] = frl_updownlist
