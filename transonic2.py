@@ -79,15 +79,13 @@ def eprint(fmt, *args):
 
 
 def _print_version():
-    """Output version number and GPL minibanner"""
+    """Output version number and GPLv2 minibanner"""
     print("%s %s" % (sys.argv[0].split(os.sep)[-1], VERSION))
-    print("Licensed under the GPL. See COPYING for details")
+    print("Licensed under the GPLv2. See COPYING for details")
 
 
 def pinger(host, count):
-    """
-    Ping host and return Pingresult
-    """
+    """Ping host and return Pingresult"""
     #print("Ping job with PID %i for host %s starting" % (os.getpid(), host))
     rtts = None
     pstat = None
@@ -174,20 +172,16 @@ def frl_updownlist(resultlist, replies):
     """
     uphosts = set()
     downhosts = set()
-    upcount = 0
-    downcount = 0
     res = []
     for pres in resultlist:
         if pres.pstats.rxcount == "?" or replies > pres.pstats.rxcount:
-            downcount +=1
             downhosts.add(pres.hostname)
         else:
-            upcount +=1
             uphosts.add(pres.hostname)
 
     res.append("UP:%s" % (" ".join(uphosts)))
     res.append("DOWN:%s" % (" ".join(downhosts)))
-    res.append("TOTALS: %s up, %s down" % (upcount, downcount))
+    res.append("TOTALS: %s up, %s down" % (len(uphosts), len(downhosts)))
     return "\n".join(res)
 FORMATTERS["updl"] = frl_updownlist
 
