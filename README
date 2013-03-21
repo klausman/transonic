@@ -7,10 +7,22 @@ you run it on. After all pings have run, Transonic will present the results in
 one of several formats. Some of the formats drop detail (like RTT) in favour of
 being able to present you a bird's eye view of the state of hosts pinged.
 
+Transonic falls into a rather small niche. It is not meant to replace fping,
+which is fast (except for DNS, which it does serially), but it doesn't have
+the rich output options transonic has. Nmap, while much more flexible
+regarding output, is a tool that needs root privileges to do a proper ICMP
+ECHO scan -- it defaults to doing a TCP pingscan instead. SUID bits on nmap
+are extremely unlikely. Also, ping tends to be available on any machine with a
+network connection -- fping and nmap might not be. The latter also goes for
+many other diagnostic tools like netwox/wag. Aside from Python 2.6 or later,
+transonic only depends on having ping(1) available. Finally, transonic is
+written as simple as possible and thus is easier to adapt and extend according
+to your taste than nmap or fping (and most other tools).
+
 Output modes
 ------------
 
-Currently, Transonic supports three output modes: cell, ccell and list,
+Currently, Transonic supports four output modes: cell, ccell, updl and list,
 defaulting to "list".
 
 Here's an example of list output:
@@ -70,6 +82,10 @@ a "!". Due to the way Transonic works, the order of hosts in the output is
 basically random. Also note how Transonic will adjust the expected reply
 count for you when it makes sense. This behaviour can be controlled using the
 -a commandline flag.
+
+The updl formatter will give you three lines, one with UP: and the hostnames
+that are up; one with DOWN:, for down hosts and a summary line prefixed with
+TOTALS:.
 
 Writing your own output formatter is relatively easy if you know Python. Since
 the Pinger function does all the ping(1) output parsing for you, all you need
