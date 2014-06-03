@@ -32,7 +32,9 @@ __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
 
 
 class Pingresult:
+
     """Encapsulate one ping result, including RTT et al"""
+
     def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None, retval=-1):
         self.hostname = hostname
         self.retval = retval
@@ -47,8 +49,8 @@ class Pingresult:
 
     def __str__(self):
         return ("%s S%s/R%s, maMD: %s/%s/%s/%s" %
-            (self.hostname, self.pstats.txcount, self.pstats.rxcount,
-             self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
+                (self.hostname, self.pstats.txcount, self.pstats.rxcount,
+                 self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 
 def eprint(fmt, *args):
@@ -79,8 +81,8 @@ def pinger(host, count):
     (retval, output) = subprocess.getstatusoutput(cmd)
 
     for line in output.split("\n"):
-        #print(line)
-        if line[2:2+len("packets transmitted")] == "packets transmitted":
+        # print(line)
+        if line[2:2 + len("packets transmitted")] == "packets transmitted":
             stats = line.split()
             if "errors," in stats:
                 pstat = __Pingstats__(int(stats[0]), int(stats[3]),
@@ -95,8 +97,8 @@ def pinger(host, count):
             r_min, r_avg, r_max, r_mdev = rtts.split("/")
             rtts = __RTTstats__(r_min, r_avg, r_max, r_mdev)
             continue
-    res =  Pingresult(host, pstat, rtts, retval)
-    #print(res)
+    res = Pingresult(host, pstat, rtts, retval)
+    # print(res)
     return res
 
 
@@ -104,6 +106,7 @@ def frl_list(resultlist, _):
     """Format the resultlist as a simple list, one host per line"""
     return "\n".join(str(x) for x in resultlist)
 FORMATTERS["list"] = frl_list
+
 
 def frl_cell(resultlist, replies):
     """
@@ -124,7 +127,7 @@ def frl_cell(resultlist, replies):
         else:
             counts[0] += 1
             res.append(pres.hostname)
-    return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    return " ".join(res) + "\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["cell"] = frl_cell
 
 
@@ -143,7 +146,7 @@ def frl_ccell(resultlist, replies):
         else:
             counts[0] += 1
             res.append(".")
-    return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    return "".join(res) + "\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["ccell"] = frl_ccell
 
 
@@ -185,8 +188,8 @@ def main():
         print_version()
         sys.exit(0)
 
-    cmdp = argparse.ArgumentParser(description=
-                                   'Ping hosts in parallel and show results')
+    cmdp = argparse.ArgumentParser(
+        description='Ping hosts in parallel and show results')
     cmdp.add_argument('targets', metavar='target', nargs='+',
                       help='Hostname or IPv4 to ping')
     cmdp.add_argument('--count', "-c", metavar='count', default=5, type=int,
@@ -200,9 +203,9 @@ def main():
                       'Note: the actual number will be the minimum of this and '
                       'the number of hosts to ping')
     cmdp.add_argument('--mode', '-m', metavar='mode',
-                       help='Output mode, one of %s (list)' %
-                       (", ".join(sorted(FORMATTERS.keys()))),
-                       choices=FORMATTERS.keys(), default='list')
+                      help='Output mode, one of %s (list)' %
+                      (", ".join(sorted(FORMATTERS.keys()))),
+                      choices=FORMATTERS.keys(), default='list')
     cmdp.add_argument('--terse', '-t', default=False,
                       action="store_true", help='Terse output. This will not '
                       'output anything except whatever the result formatter '
@@ -215,7 +218,6 @@ def main():
                       action="store_true", help='Do not adjust expected '
                       'number of replies, even if larger than number of '
                       'requests sent.')
-
 
     args = cmdp.parse_args()
 
@@ -239,10 +241,10 @@ def main():
     ppinger = partial(pinger, count=args.count)
     results = pool.map(ppinger, args.targets)
     end = time.time()
-    #print(results)
+    # print(results)
     print(formatresultlist(results, args.mode, args.replies))
     eprint("Time taken: %.3f seconds (%.3f per host)" %
-          (end-start, (end-start)/len(args.targets)))
+           (end - start, (end - start) / len(args.targets)))
 
 
 if __name__ == "__main__":

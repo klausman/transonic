@@ -32,9 +32,12 @@ __Pingstats__ = namedtuple('__Pingstats__', "txcount rxcount lossprc totaltm")
 __RTTstats__ = namedtuple('__RTTstats__', "rmin ravg rmax rmdev")
 
 # The next two functions make partial() objects pickleable in 2.6
+
+
 def _pickle_partial(obj):
     """Pickle a functools.partial()"""
     return _unpickle_partial, (obj.func, obj.args, obj.keywords)
+
 
 def _unpickle_partial(func, args, keywords):
     """Unpickle a functools.partial()"""
@@ -47,7 +50,9 @@ if sys.version_info[:2] == (2, 6):
 
 
 class Pingresult:
+
     """Encapsulate one ping result, including RTT et al"""
+
     def __init__(self, hostname="UNKNOWN", pstats=None, rtt=None):
         self.hostname = hostname
         if pstats:
@@ -61,8 +66,8 @@ class Pingresult:
 
     def __str__(self):
         return ("%s S%s/R%s, maMD: %s/%s/%s/%s" %
-            (self.hostname, self.pstats.txcount, self.pstats.rxcount,
-             self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
+                (self.hostname, self.pstats.txcount, self.pstats.rxcount,
+                 self.rtt.rmin, self.rtt.ravg, self.rtt.rmax, self.rtt.rmdev))
 
 
 def eprint(fmt, *args):
@@ -92,18 +97,18 @@ def pinger(host, count):
     cmd = ['ping', '-W', '1', '-c', str(count), '-q', host]
     pcomm = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
-    output, _ = pcomm.communicate() # we drop stderr and ignore it
+    output, _ = pcomm.communicate()  # we drop stderr and ignore it
 
     # pylint gets confused here; pylint: disable-msg=E1103
     for line in output.split("\n"):
-        if line[2:2+len("packets transmitted")] == "packets transmitted":
+        if line[2:2 + len("packets transmitted")] == "packets transmitted":
             stats = line.split()
             if "errors," in stats:
                 pstat = __Pingstats__(int(stats[0]), int(stats[3]),
-                                  int(stats[7][:-1]), int(stats[11][:-2]))
+                                      int(stats[7][:-1]), int(stats[11][:-2]))
             else:
                 pstat = __Pingstats__(int(stats[0]), int(stats[3]),
-                                  int(stats[5][:-1]), int(stats[9][:-2]))
+                                      int(stats[5][:-1]), int(stats[9][:-2]))
             continue
 
         if line.startswith("rtt min/avg/max/mdev"):
@@ -111,8 +116,8 @@ def pinger(host, count):
             r_min, r_avg, r_max, r_mdev = rtts.split("/")
             rtts = __RTTstats__(r_min, r_avg, r_max, r_mdev)
             continue
-    res =  Pingresult(host, pstat, rtts)
-    #print(res)
+    res = Pingresult(host, pstat, rtts)
+    # print(res)
     return res
 
 
@@ -141,7 +146,7 @@ def frl_cell(resultlist, replies):
         else:
             counts[0] += 1
             res.append(pres.hostname)
-    return " ".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    return " ".join(res) + "\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["cell"] = frl_cell
 
 
@@ -160,7 +165,7 @@ def frl_ccell(resultlist, replies):
         else:
             counts[0] += 1
             res.append(".")
-    return "".join(res)+"\n%i up, %i down" % (counts[0], counts[1])
+    return "".join(res) + "\n%i up, %i down" % (counts[0], counts[1])
 FORMATTERS["ccell"] = frl_ccell
 
 
@@ -253,10 +258,10 @@ def main():
     start = time.time()
     results = pool.map(ppinger, arguments)
     end = time.time()
-    #print(results)
+    # print(results)
     print(formatresultlist(results, opts.mode, opts.replies))
     eprint("Time taken: %.3f seconds (%.3f per host)" %
-           (end-start, (end-start)/len(arguments)))
+           (end - start, (end - start) / len(arguments)))
 
 if __name__ == "__main__":
     main()
